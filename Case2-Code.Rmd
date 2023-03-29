@@ -1,0 +1,1551 @@
+---
+title: "Case2-Code"
+---
+
+
+
+
+
+```{r setup, include = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+rm(list=ls(all=T))
+
+```
+
+
+
+### Import Packages
+
+```{r, echo = FALSE, eval = FALSE}
+
+library(egg)
+library(pls)
+library(dplyr)
+library(tidyr)
+library(ggpubr)
+library(glmnet)
+library(readxl)
+library(GGally)
+library(ggrepel)
+library(ggplot2)
+library(stringr)
+library(shinyBS)
+library(sfsmisc)
+library(shinyjs)
+library(openxlsx)
+library(corrplot)
+library(gridExtra)
+library(factoextra)
+library(ggcorrplot)
+library(matrixStats)
+library(RColorBrewer)
+library(shinydashboard)
+library(shinycssloaders)
+
+```
+
+
+
+### EDA
+
+```{r, eval = FALSE, echo=FALSE}
+
+setwd("D:/Academic/NTHU/NTHU Practicing Statistics/Case2")
+
+Inline1 = read_excel( "Raw data.xlsx" , sheet = 6 ) 
+Inline2 = read_excel( "Raw data.xlsx" , sheet = 7 ) 
+
+M5 = read_excel('Raw data.xlsx',1) 
+M4 = read_excel('Raw data.xlsx',2)  
+M3 = read_excel('Raw data.xlsx',3)
+M2 = read_excel('Raw data.xlsx',4)
+M1 = read_excel('Raw data.xlsx',5)
+
+colnames(M5)[1] = 'num'
+colnames(M4)[1] = 'num'
+colnames(M3)[1] = 'num'
+colnames(M2)[1] = 'num'
+colnames(M1)[1] = 'num'
+
+
+
+Inline1$批號 = factor(Inline1$批號, level = 1:10)
+inline1_plot = gather(Inline1, "CoA", "value", 3:17)
+inline1_plot$status = ifelse(abs(inline1_plot$Inline) > 0.3, "abnormal",
+                             ifelse(abs(inline1_plot$Inline) == 0.3, "neutral", "normal"))
+inline1_plot$CoA = factor(inline1_plot$CoA, level = paste0("CoA_", 1:15))
+inline1_plot$批號 = factor(inline1_plot$批號, level = 1:10)
+#colnames(inline1_plot)
+
+ggplot(inline1_plot , aes(x = 批號))+
+  geom_point(aes(y = value, colour = status), size=4)+
+  facet_wrap(CoA~., scale = "free_y", ncol = 4)
+
+var = c(1,2,3)
+plot1 = ggplot(inline1_plot %>% filter(CoA %in% paste0("CoA_", var)) , aes(x = Inline))+
+  geom_point(aes(y = value, colour = status), size=4, alpha=0.4)+
+  facet_wrap(CoA~., scale = "free_y", ncol = 1)+
+  geom_text(aes(y = value, label = 批號), size=4)+
+  theme(legend.position = "none")
+
+
+plot2 = ggplot(inline1_plot%>% filter(CoA %in% paste0("CoA_", var)), aes(y = value))+
+  geom_boxplot()+
+  facet_wrap(CoA~., scale = "free", ncol = 1)+
+  geom_jitter(aes(x = 0, y = value, colour = status), size=4, alpha=0.4, position = position_jitter(set.seed(1)))+
+  geom_text(aes(x = 0, y = value, label = 批號), size=4, position = position_jitter(set.seed(1)))+
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none")
+
+ggarrange(plot1, plot2, nrow=1)
+
+var = c(11,12,13)
+plot1 = ggplot(inline1_plot %>% filter(CoA %in% paste0("CoA_", var)) , aes(x = Inline))+
+  geom_point(aes(y = value, colour = status), size=4, alpha=0.4)+
+  facet_wrap(CoA~., scale = "free_y", ncol = 1)+
+  geom_text(aes(y = value, label = 批號), size=4)+
+  theme(legend.position = "none")
+
+
+plot2 = ggplot(inline1_plot%>% filter(CoA %in% paste0("CoA_", var)), aes(y = value))+
+  geom_boxplot()+
+  facet_wrap(CoA~., scale = "free", ncol = 1)+
+  geom_jitter(aes(x = 0, y = value, colour = status), size=4, alpha=0.4, position = position_jitter(set.seed(1)))+
+  geom_text(aes(x = 0, y = value, label = 批號), size=4, position = position_jitter(set.seed(1)))+
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none")
+
+ggarrange(plot1, plot2, nrow=1)
+
+
+
+Inline2$批號 = factor(Inline2$批號, level = 1:12)
+inline2_plot = gather(Inline2, "CoA", "value", 3:31)
+inline2_plot$inspec = ifelse(inline2_plot$Inline > 0 & inline2_plot$Inline < 10 , "IS" , "OOS" )
+inline2_plot$CoA = factor(inline2_plot$CoA, level = paste0("CoA_", 1:29))
+inline2_plot$批號 = factor(inline2_plot$批號, level = 1:12)
+#colnames(inline2_plot)
+
+ggplot(inline2_plot , aes(x = 批號))+
+  geom_point(aes(y = value, colour = inspec), size=4)+
+  facet_wrap(CoA~., scale = "free_y", ncol = 5)
+
+var = c(8,19)
+plot1 = ggplot(inline2_plot %>% filter(CoA %in% paste0("CoA_", var)) , aes(x = Inline))+
+  geom_point(aes(y = value, colour = inspec), size=4, alpha=0.4)+
+  facet_wrap(CoA~., scale = "free_y", ncol = 1)+
+  geom_text(aes(y = value, label = 批號), size=4)+
+  theme(legend.position = "none")
+
+
+plot2 = ggplot(inline2_plot%>% filter(CoA %in% paste0("CoA_", var)), aes(y = value))+
+  geom_boxplot()+
+  facet_wrap(CoA~., scale = "free", ncol = 1)+
+  geom_jitter(aes(x = 0, y = value, colour = inspec), size=4, alpha=0.4, position = position_jitter(set.seed(1)))+
+  geom_text(aes(x = 0, y = value, label = 批號), size=4, position = position_jitter(set.seed(1)))+
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "none")
+
+ggarrange(plot1, plot2, nrow=1)
+
+
+
+data1 = M1
+data1$CoA_10 <- NULL
+data1$CoA_9 <- NULL
+data1$CoA_8 <- NULL
+data1$CoA_4 <- NULL
+data1$CoA_1 <- NULL
+
+p1 = ggplot(M1,aes(x=num,y=CoA_3)) + geom_point() + facet_grid(.~'CoA_3')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p2 = ggplot(M1,aes(x=num,y=CoA_7)) + geom_point() + facet_grid(.~'CoA_7')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,nrow=1)
+
+p1 = ggplot(M1,aes(x=num,y=CoA_12)) + geom_point() + facet_grid(.~'CoA_12')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p2 = ggplot(M1,aes(y=CoA_12)) + geom_boxplot() + facet_grid(.~'CoA_12') +
+  scale_y_continuous('value')+theme(text = element_text(size=15))
+
+p3 = ggplot(M1,aes(x=num,y=CoA_13)) + geom_point() + facet_grid(.~'CoA_13')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p4 = ggplot(M1,aes(y=CoA_13)) + geom_boxplot() + facet_grid(.~'CoA_13') +
+  scale_y_continuous('value')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,p3,p4,nrow=1)
+
+p1 = ggplot(M1,aes(x=num,y=CoA_14)) + geom_point() + facet_grid(.~'CoA_14')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p2 = ggplot(M1,aes(x=CoA_14)) + geom_bar() + facet_grid(.~'CoA_14') +
+  scale_y_continuous('count')+theme(text = element_text(size=15))
+
+p3 = ggplot(M1,aes(y=CoA_14)) + geom_boxplot() + facet_grid(.~'CoA_14') +
+  scale_y_continuous('value')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,p3,nrow=1)
+
+corr = round(cor(data1[,-1]), 2)
+ggcorrplot(corr,lab=TRUE)
+
+
+
+p1 = ggplot(M2,aes(x=num,y=CoA_4)) + geom_point() + facet_grid(.~'CoA_4')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p2 = ggplot(M2,aes(x=num,y=CoA_5)) + geom_point() + facet_grid(.~'CoA_5')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p3 = ggplot(M2,aes(x=num,y=CoA_6)) + geom_point() + facet_grid(.~'CoA_6')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p4 = ggplot(M2,aes(x=num,y=CoA_11)) + geom_point() + facet_grid(.~'CoA_11')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,p3,p4,nrow=2)
+
+corr = round(cor(M2[,c(5,6,7,12)]), 2)
+ggcorrplot(corr,lab=T)
+
+
+
+data3 = M3
+data3$CoA_37 <- NULL
+data3$CoA_36 <- NULL
+data3$CoA_33 <- NULL
+data3$CoA_19 <- NULL
+data3$CoA_17 <- NULL
+data3$CoA_16 <- NULL
+data3$CoA_10 <- NULL
+data3$CoA_8 <- NULL
+data3$CoA_7 <- NULL
+data3$CoA_5 <- NULL
+data3$CoA_3 <- NULL
+data3$CoA_2 <- NULL
+data3$CoA_1 <- NULL
+
+p1 = ggplot(M3,aes(x=num,y=CoA_6)) + geom_point() + facet_grid(.~'CoA_6')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p2 = ggplot(M3,aes(x=num,y=CoA_13)) + geom_point() + facet_grid(.~'CoA_13')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p3 = ggplot(M3,aes(x=num,y=CoA_15)) + geom_point() + facet_grid(.~'CoA_15')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p4 = ggplot(M3,aes(x=num,y=CoA_18)) + geom_point() + facet_grid(.~'CoA_18')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p5 = ggplot(M3,aes(x=num,y=CoA_20)) + geom_point() + facet_grid(.~'CoA_20')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p6 = ggplot(M3,aes(x=num,y=CoA_21)) + geom_point() + facet_grid(.~'CoA_21')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p7 = ggplot(M3,aes(x=num,y=CoA_23)) + geom_point() + facet_grid(.~'CoA_23')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p8 = ggplot(M3,aes(x=num,y=CoA_25)) + geom_point() + facet_grid(.~'CoA_25')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p9 = ggplot(M3,aes(x=num,y=CoA_26)) + geom_point() + facet_grid(.~'CoA_26')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+p10 = ggplot(M3,aes(x=num,y=CoA_27)) + geom_point() + facet_grid(.~'CoA_27')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))+geom_smooth()
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,nrow=2)
+
+p1 = ggplot(M3,aes(x=num,y=CoA_23)) + geom_point() + facet_grid(.~'CoA_23')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p4 = ggplot(M3,aes(y=CoA_23)) + geom_boxplot() + facet_grid(.~'CoA_23') +
+  scale_y_continuous('value')+theme(text = element_text(size=15))
+
+p2 = ggplot(M3,aes(x=num,y=CoA_32)) + geom_point() + facet_grid(.~'CoA_32')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p5 = ggplot(M3,aes(y=CoA_32)) + geom_boxplot() + facet_grid(.~'CoA_32') +
+  scale_y_continuous('value')+theme(text = element_text(size=15))
+
+p3 = ggplot(M3,aes(x=num,y=CoA_34)) + geom_point() + facet_grid(.~'CoA_34')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p6 = ggplot(M3,aes(y=CoA_34)) + geom_boxplot() + facet_grid(.~'CoA_34') +
+  scale_y_continuous('value')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,p3,p4,p5,p6,nrow=2)
+
+corr = round(cor(data3[,-1]), 2)
+ggcorrplot(corr,lab=F)
+
+
+
+data4 = M4
+
+data4$CoA_26 <- NULL
+data4$CoA_22 <- NULL
+data4$CoA_21 <- NULL
+data4$CoA_20 <- NULL
+data4$CoA_19 <- NULL
+data4$CoA_14 <- NULL
+data4$CoA_12 <- NULL
+data4$CoA_11 <- NULL
+data4$CoA_8 <- NULL
+data4$CoA_6 <- NULL
+data4$CoA_5 <- NULL
+data4$CoA_3 <- NULL
+data4$CoA_2 <- NULL
+data4$CoA_1 <- NULL
+
+p1 = ggplot(M4,aes(x=num,y=CoA_4)) + geom_point() + facet_grid(.~'CoA_4')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p2 = ggplot(M4,aes(x=num,y=CoA_7)) + geom_point() + facet_grid(.~'CoA_7')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p3 = ggplot(M4,aes(x=num,y=CoA_9)) + geom_point() + facet_grid(.~'CoA_9')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p4 = ggplot(M4,aes(x=num,y=CoA_10)) + geom_point() + facet_grid(.~'CoA_10')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,p3,p4,nrow=2)
+
+p1 = ggplot(M4,aes(x=num,y=CoA_16)) + geom_point() + facet_grid(.~'CoA_16')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p2 = ggplot(M4,aes(x=num,y=CoA_25)) + geom_point() + facet_grid(.~'CoA_25')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,nrow=1)
+
+corr = round(cor(data4[,-c(1,11)]), 2)
+ggcorrplot(corr,lab=T)
+
+
+
+data5 = M5
+data5$CoA_6 <- NULL
+data5$CoA_4 <- NULL
+
+p1 = ggplot(M5,aes(x=num,y=CoA_1)) + geom_point() + facet_grid(.~'CoA_1')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p2 = ggplot(M5,aes(x=num,y=CoA_2)) + geom_point() + facet_grid(.~'CoA_2')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p3 = ggplot(M5,aes(x=num,y=CoA_3)) + geom_point() + facet_grid(.~'CoA_3')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+p4 = ggplot(M5,aes(x=num,y=CoA_5)) + geom_point() + facet_grid(.~'CoA_5')+
+  scale_y_continuous('value')+scale_x_continuous('批號')+theme(text = element_text(size=15))
+
+grid.arrange(p1,p2,p3,p4,nrow=2)
+
+corr = round(cor(data5[,-1]), 2)
+ggcorrplot(corr,lab=T)
+
+
+```
+
+
+
+### Analysis - Problem 1
+
+```{r, eval = FALSE, echo=FALSE}
+
+########inline 1############
+
+#function
+CI_plot= function(data, fitted_plot0, predict, upr, lwr){
+  
+  fitted_plot0$ystart = ifelse(fitted_plot0$upr>upr, upr, fitted_plot0$upr)
+  fitted_plot0$yend = ifelse(fitted_plot0$lwr<(lwr), lwr, fitted_plot0$lwr)
+  
+  fitted_plot0$ystart = ifelse(fitted_plot0$lwr>=upr, 0, fitted_plot0$ystart)
+  fitted_plot0$yend = ifelse(fitted_plot0$lwr>=upr, 0, fitted_plot0$yend)
+  
+  fitted_plot0$ystart = ifelse(fitted_plot0$upr<=lwr, 0, fitted_plot0$ystart)
+  fitted_plot0$yend = ifelse(fitted_plot0$upr<=lwr, 0, fitted_plot0$yend)
+  
+  fitted_plot0$prop = abs(fitted_plot0$ystart-fitted_plot0$yend)/abs(fitted_plot0$upr-fitted_plot0$lwr)
+  fitted_plot0$text = (fitted_plot0$ystart+fitted_plot0$yend)/2
+  fitted_plot0 = filter(fitted_plot0, prop!=0)
+  
+  fitted_plot = data.frame(data, predict)
+
+  fitted_plot = gather(fitted_plot,"method", "value", c(2,which(colnames(fitted_plot) == "fit")))
+  fitted_plot$Batch = factor(fitted_plot$Batch, level = 1:nrow(data))
+  
+  
+  
+  ggplot(fitted_plot, aes(x =Batch))+
+    geom_point(aes(y = value, colour = status, shape = method), size=5)+
+    geom_errorbar(data = filter(fitted_plot, method == "fit"),
+                  aes(ymin = lwr, ymax = upr, colour = status), size=1)+
+    geom_hline(yintercept = c(upr,lwr), linetype = "dashed", colour = "red")+
+    scale_shape_manual(values = c("fit" = 16,
+                                  "Inline" = 11))+
+    theme(axis.text = element_text(size=15),
+          axis.title = element_text(size=15))+
+    geom_curve(data = fitted_plot0, 
+               aes(x = Batch, y = ystart, xend = Batch, yend = yend, colour = status), size=1)+
+    geom_text(data = fitted_plot0,
+              aes(x = as.numeric(Batch)-0.3, y = text, 
+                  label = round(prop,2),
+                  colour = status), size=5)
+}
+
+density_plot = function(fitted_plot0, upr, lwr){
+  fitted_plot0$se = (fitted_plot0$upr - fitted_plot0$fit)/1.96
+  r = max(fitted_plot0$se)*3
+  
+  lasso_density = lapply(1:nrow(fitted_plot0),
+                         function(i){
+                           fit = fitted_plot0[i,]
+                           pdf = data.frame(x = seq(fit$fit-r, fit$fit+r, 0.01),
+                                            y = dnorm(seq(fit$fit-r, fit$fit+r, 0.01),
+                                                      mean = fit$fit, sd = fit$se))
+                           p = function(n){dnorm(n,mean = fit$fit, sd = fit$se)}
+                           
+                           prop = integrate(p, lwr, upr)$value
+                           pdf = cbind(Batch = fit$Batch, status = fit$status, pdf, prop=prop)
+                         }) %>% do.call(rbind,.)
+  out = lasso_density %>% group_by(Batch) %>% summarise(prop = unique(prop), status = unique(status))
+  plot = ggplot(lasso_density, aes(x = x))+
+    geom_line(aes(y =y, colour = status), size=1)+
+    facet_wrap(~Batch)+
+    geom_vline(xintercept = c(lwr, upr), linetype = "dashed")+
+    geom_text(aes(x=mean(x), y = 0, label = paste0("P(",lwr,"<=x<=", upr,") = ", round(prop,3))), size=3)
+  
+  
+  
+  list(out,plot)
+}
+
+cutpoint_rate = function(fitted_plot0, type, upr, lwr){
+  cutpoint_rate2 = function(c, fitted_plot0){
+    
+    FDR = ifelse(sum(fitted_plot0$prop<=c & fitted_plot0$status != "OOS")==0, 0, 
+                 sum(fitted_plot0$prop<=c & fitted_plot0$status != "OOS")/sum(fitted_plot0$prop<=c))
+    
+    type2 = ifelse(sum(fitted_plot0$prop>c & fitted_plot0$status == "OOS")==0, 0,
+                   sum(fitted_plot0$prop>c & fitted_plot0$status == "OOS")/sum(fitted_plot0$prop>c))  
+    
+    spe = sum(fitted_plot0$prop<=c & fitted_plot0$status == "OOS")/sum(fitted_plot0$status == "OOS")
+    sen = sum(fitted_plot0$prop>c & fitted_plot0$status != "OOS")/sum(fitted_plot0$status != "OOS")
+    f1  = (1-FDR)*spe
+    c(c, FDR, type2, spe, sen, f1)
+  }
+  
+  if(type == "prop"){
+    fitted_plot0$ystart = ifelse(fitted_plot0$upr>upr, upr, fitted_plot0$upr)
+    fitted_plot0$yend = ifelse(fitted_plot0$lwr<lwr, lwr, fitted_plot0$lwr)
+    fitted_plot0$prop = abs(fitted_plot0$ystart-fitted_plot0$yend)/abs(fitted_plot0$upr-fitted_plot0$lwr)
+    
+    lasso_cut = t(sapply(seq(0,1,0.01), function(c) cutpoint_rate2(c, fitted_plot0))) %>% data.frame(.)
+    colnames(lasso_cut) = c("Cutpoint", "type1_error", "type2_error", "Specificity", "Sensitivity", "F1_score")
+    
+  }
+  
+  if(type == "pdf"){
+    lasso_cut = t(sapply(seq(0,1,0.01), function(c) cutpoint_rate2(c, fitted_plot0))) %>% data.frame(.)
+    colnames(lasso_cut) = c("Cutpoint", "type1_error", "type2_error", "Specificity", "Sensitivity", "F1_score")
+    
+  }
+  
+  return(lasso_cut)
+}
+
+
+cutpoint_plot = function(lasso_cut){
+  plot = gather(lasso_cut, "type", "rate", 2:6)
+  ggplot(plot, aes(x = Cutpoint))+
+    geom_line(aes(y = rate, group = type, colour = type, linetype = type), size = 1)+
+    geom_line(data = filter(plot, type == "F1_score"),
+              aes(y = rate, group = type, colour = type, linetype = type), size = 1)
+}
+
+```
+
+```{r, eval = FALSE, echo=FALSE} 
+
+#lasso linear model
+
+data = lapply(1:7, function(i) read.xlsx("D:/Academic/NTHU/NTHU Practicing Statistics/Case2/Raw data.xlsx", sheet = i))
+names(data) = c(paste0("material", 5:1), paste0("Inline", 1:2))
+
+Inline1 = data$Inline1
+Inline1$批號 = factor(Inline1$批號, level = 1:10)
+colnames(Inline1)[colnames(Inline1) == "批號"] = "Batch"
+Inline1$status = ifelse(abs(Inline1$Inline) > 0.3, "abnormal",
+                        ifelse(abs(Inline1$Inline) == 0.3, "neutral", "normal"))
+
+lasso.cv = cv.glmnet(x = as.matrix(Inline1[,3:17]),
+                     y = Inline1$Inline,
+                     alpha = 1,
+                     standardize=T
+                    )
+coef(lasso.cv, s = lasso.cv$lambda.min)
+
+lasso = glmnet(x = as.matrix(Inline1[,3:17]),
+               y = Inline1$Inline,
+               alpha = 1,
+               standardize=T
+)
+plot(lasso, xvar = "lambda")
+abline(v = log(lasso.cv$lambda.min), lty = 2)
+
+lasso.lm = lm(Inline~CoA_1+CoA_3+CoA_7+CoA_11, data = Inline1)
+lasso.lm_summary = summary(lasso.lm)
+lasso.lm_summary$coefficients
+par(mfrow = c(2,2))
+plot(lasso.lm)
+
+shapiro.test(resid(lasso.lm))
+
+fitted_plot0 = data.frame(select(Inline1, c(Batch, status)),predict(lasso.lm, Inline1,interval = 'prediction'))
+
+CI_plot(Inline1, fitted_plot0, predict(lasso.lm, newdata = Inline1, interval = "prediction"), 0.3, -0.3)
+
+
+fitted_plot1 = fitted_plot0
+fitted_plot1$status = ifelse(fitted_plot1$status == "abnormal", "OOS", "IS")
+cutpoint_plot(cutpoint_rate(fitted_plot1, "prop", 0.3, -0.3))
+
+lasso_pdf = density_plot(fitted_plot1, 0.3, -0.3)
+lasso_pdf[[2]]
+cutpoint_plot(cutpoint_rate(lasso_pdf[[1]], "pdf", 0.3, -0.3))
+
+```
+
+```{r, eval = FALSE, echo=FALSE}
+#principle component regression
+
+pca_inline1 = prcomp(as.matrix(Inline1[,3:17]), scale = T, center = T)
+
+# Heatmap 
+x <- paste0("PC", 1:10)
+y <- paste0("COA_", 1:15)
+heat <- expand.grid(X=x, Y=y)
+heat$rotation <- as.vector(pca_inline1$rotation)
+ 
+
+ggplot(heat, aes(X, Y, fill= rotation)) + 
+  geom_tile()+
+  geom_text(aes(label = round(rotation, 2)))+scale_fill_gradient()+
+  theme(axis.title = element_blank())
+  
+
+summary(pca_inline1)
+scree_plot = data.frame(sdev = cumsum(pca_inline1$sdev^2)/sum(pca_inline1$sdev^2),
+                        PC = factor(1:length(pca_inline1$sdev),
+                                    level = 1:length(pca_inline1$sdev)))
+ggplot(scree_plot, aes(x = PC))+
+  geom_point(aes(y = sdev), size=3)+
+  geom_line(aes(y = sdev, group = 1), size=1)+
+  theme(axis.text = element_text(size=15),
+        axis.title = element_text(size=15))+
+  ylab("Variance explained (100%)")
+
+
+#cv
+
+pcr_cv = sapply(1:nrow(Inline1), 
+                function(i){
+                  sapply(1:ncol(pca_inline1$x), 
+                         function(k){
+                           fit_data = data.frame(Inline =Inline1$Inline[setdiff(1:10,i)],
+                                                 data.frame(pca_inline1$x[(setdiff(1:10,i)),1:k]))
+                           colnames(fit_data)[-1] = paste0("PC",1:k)
+                           out = lm(Inline~. ,data = fit_data)
+                           fit = data.frame(pca_inline1$x[,1:k])
+                           colnames(fit) = paste0("PC", 1:k)
+                           pre = predict(out, newdata = fit)
+                           sqrt(mean(sum((Inline1$Inline-pre)^2)))
+                         })
+                }) %>% as.data.frame(.)
+colnames(pcr_cv) = 1:10
+pcr_cv$PC= paste0("PC", 1:10)
+#sd
+apply(pcr_cv[,-11],1,sd) #1
+mean.cv = data.frame(mean = apply(pcr_cv[,-11],1, mean),
+                     PC = factor(paste0("PC", 1:10), level = paste0("PC", 1:10)))
+
+
+pcr_cv_plot = gather(pcr_cv, "Batch", "mse",1:10)
+pcr_cv_plot$PC = factor(pcr_cv_plot$PC, level = paste0("PC", 1:10))
+pcr_cv_plot$Batch = factor(pcr_cv_plot$Batch, level = 1:10)
+
+ggplot(pcr_cv_plot %>% filter(PC %in% paste0("PC", 1:6)), aes(x = PC))+
+  geom_line(aes(y = mse, group = Batch, colour = Batch), size=1)+
+  geom_line(data = filter(mean.cv, PC %in% paste0("PC", 1:6)), aes(y = mean, group = 1, colour = "mean"), size=2)
+
+
+fit = data.frame(cbind(Inline = Inline1$Inline,pca_inline1$x))
+
+pcr.lasso = cv.glmnet(x = as.matrix(fit[, c(2:ncol(fit))]),
+                      y = fit$Inline - mean(fit$Inline),
+                      alpha = 1,
+                     standardize=F)
+pcr.lasso0 = glmnet(x = as.matrix(fit[, c(2:ncol(fit))]),
+                      y = fit$Inline - mean(fit$Inline),
+                      alpha = 1,
+                     standardize=F)
+
+plot(pcr.lasso0, xvar = "lambda")
+abline(v = log(pcr.lasso$lambda.min), lty=2)
+
+coef(pcr.lasso, s = pcr.lasso$lambda.min)
+
+pcr.lm = lm(Inline~PC1+PC3+PC5, data = data.frame(fit))
+summ_pcr = summary(pcr.lm)
+
+par(mfrow = c(2,2))
+plot(pcr.lm)
+shapiro.test(resid(pcr.lm))
+
+# fitted with CI
+fitted_plot0 = data.frame(select(Inline1, c(Batch, status)),
+                          predict(pcr.lm, interval = "prediction"))
+
+
+CI_plot(Inline1, fitted_plot0, 
+        predict = predict(pcr.lm, interval = "prediction"), 0.3, -0.3)
+#pdf
+pcr_pdf = density_plot(fitted_plot0, 0.3, -0.3)
+pcr_pdf[[2]]
+
+#cutpoint
+fitted_plot1 = fitted_plot0
+fitted_plot1$status = ifelse(fitted_plot1$status == "abnormal", "OOS", "IS")
+pcr_cut = cutpoint_rate(fitted_plot1, "prop", 0.3, -0.3)
+cutpoint_plot(pcr_cut)
+
+pcr_pdf[[1]]$status = ifelse(pcr_pdf[[1]]$status == "abnormal", "OOS", "IS")
+pcr_pdf_cut = cutpoint_rate(pcr_pdf[[1]], "pdf", 0.3, -0.3)
+cutpoint_plot(pcr_pdf_cut)
+```
+
+```{r, eval = FALSE, echo=FALSE}
+
+# partial least square regression
+
+plsr.fit = plsr(as.matrix(Inline1$Inline)~as.matrix(Inline1[, 3:17]), scale = T, center = T)
+summary(plsr.fit)
+v_plot = data.frame(x = cumsum(explvar(plsr.fit)),
+             y = drop(R2(plsr.fit, estimate = "train", intercept = FALSE)$val)*100,
+             PC = factor(paste0("PC", 1:9), level = paste0("PC", 1:9)))
+
+  pc_plot = ggplot(v_plot, aes(x = x))+
+    geom_line(aes(y=y), alpha=0.3)+
+    geom_point(aes(y=y), size=7, alpha=0.1)+
+    geom_text(aes(y=y, label = PC))+
+    ggtitle("Variance explained")+
+    xlab("Variance explained in X (%)")+
+    ylab("Variance explained in Y (%)")
+
+## pls cv
+pls.cv = sapply(1:10, function(i){
+  sapply(1:8, function(k){
+    fit = Inline1[-i, c(2:17)]
+    fit =fit[, apply(fit,2,sd)!=0]
+    colnames(fit)
+    plsr.fit = plsr(Inline~., data = fit,
+                    scale = T, center = T)
+    
+    pre = predict(plsr.fit, newdata = Inline1[,3:17])[,,k]
+    sqrt(sum((Inline1$Inline-pre)^2))
+    
+  })
+}) %>% data.frame(.)
+colnames(pls.cv) = 1:10
+pls.cv$PC = paste0("PC", 1:nrow(pls.cv))
+
+apply(pls.cv[,-11], 1, mean) #2 
+apply(pls.cv[,-11], 1, sd) #2 
+
+pls.cv_plot = gather(pls.cv, "Batch", "rmse", 1:10)
+pls.cv_plot$PC = factor(pls.cv_plot$PC, level = paste0("PC", 1:10))
+pls.cv_plot$Batch = factor(pls.cv_plot$Batch, level = 1:10)
+
+mean_pls = data.frame(mean = apply(pls.cv[,-11], 1, mean),
+                      PC = factor(paste0("PC", 1:8), level = paste0("PC", 1:8)))
+
+ggplot(pls.cv_plot, aes(x = PC))+
+  geom_line(data = mean_pls, aes(y = mean, colour = "mean rmse", group = 1), size=2)+
+  geom_line(aes(y = rmse, group = Batch, colour = Batch))+
+  ylab("RMSE")+xlab("Component")+
+  guides(colour = guide_legend("Batch"))
+
+
+PC = 3
+fit = Inline1[, c(2:17)]
+fit =fit[, apply(fit,2,sd)!=0]
+
+plsr.fit = plsr(Inline~., data = fit,
+                scale = T, center = T, ncomp=3)
+
+plsr.fit
+coef(plsr.fit)
+
+predict(plsr.fit)[,,PC]
+
+pre = predict(plsr.fit)[,,PC]
+
+res = Inline1$Inline - predict(plsr.fit, newdata = Inline1[,3:17])[,,PC]
+
+
+shapiro.test(res)# normal test
+quantile(rank(res))
+
+qqnorm(res) 
+qqline(res,
+       qtype = 7)
+
+length(pre)
+length(res)
+plot(x = pre, y= res)
+abline(h=0, lty=2)
+
+
+T_ = as.matrix(plsr.fit$scores[,1:PC])
+rmse = sum(res^2)/(10-PC)
+
+Q = plsr.fit$Yloadings[1,]
+q = qt(0.975,8)
+ci = q*sqrt(sapply(1:10 ,
+       function(i) rmse*(T_[i,]%*%solve(t(T_)%*%T_)%*%matrix(T_[i,], ncol=1)+1)))
+
+#coef(plsr.fit)
+pre = data.frame(fit = c(predict(plsr.fit, newdata = Inline1[,3:17])[,,PC]))
+pre$lwr = pre$fit-ci
+pre$upr = pre$fit+ci
+
+fitted_plot0 = data.frame(select(Inline1, c(Batch, status)),
+                          pre)
+
+#CI
+
+CI_plot(Inline1, fitted_plot0, pre, 0.3, -0.3)
+
+#pdf
+pcr_pdf = density_plot(fitted_plot0, 0.3, -0.3)
+pcr_pdf[[2]]
+
+#cutpoint
+fitted_plot1 = fitted_plot0
+fitted_plot1$status = ifelse(fitted_plot1$status == "abnormal", "OOS", "IS")
+pcr_cut = cutpoint_rate(fitted_plot1, "prop", 0.3, -0.3)
+cutpoint_plot(pcr_cut)
+
+
+pcr_pdf[[1]]$status = ifelse(pcr_pdf[[1]]$status == "abnormal", "OOS", "IS")
+pcr_pdf_cut = cutpoint_rate(pcr_pdf[[1]], "pdf", 0.3, -0.3)
+cutpoint_plot(pcr_pdf_cut)
+
+
+```
+
+
+
+### Analysis - Problem 2
+
+```{r}
+
+material5 = as.data.frame( read_excel( "Raw data.xlsx" , sheet = 1 ) )
+material4 = as.data.frame( read_excel( "Raw data.xlsx" , sheet = 2 ) )
+material3 = as.data.frame( read_excel( "Raw data.xlsx" , sheet = 3 ) )
+material2 = as.data.frame( read_excel( "Raw data.xlsx" , sheet = 4 ) )
+material1 = as.data.frame( read_excel( "Raw data.xlsx" , sheet = 5 ) )
+inline1   = as.data.frame( read_excel( "Raw data.xlsx" , sheet = 6 ) )
+inline2   = as.data.frame( read_excel( "Raw data.xlsx" , sheet = 7 ) )
+
+```
+
+##### Material 1
+###### Missing : CoA_3 , CoA_7
+
+```{r}
+
+par(mfrow = c(2,2))
+
+plot( material1$CoA_3  , xlab = "批號" , ylab = "CoA_3"  , main = "Material1" )
+plot( material1$CoA_7  , xlab = "批號" , ylab = "CoA_7"  , main = "Material1" )
+
+hist( material1$CoA_3  , xlab = "CoA_3"  , main = "Material1" )
+abline( v = median ( material1$CoA_3[which(material1$CoA_3 != "NA")] ) , col = "red" )
+
+hist( material1$CoA_7  , xlab = "CoA_7"  , main = "Material1" , breaks = 20 )
+abline( v = median ( material1$CoA_7[which(material1$CoA_7 != "NA")] ) , col = "red" )
+
+
+table(material1$CoA_3)
+table(material1$CoA_7)
+
+median ( material1$CoA_3[which(material1$CoA_3 != "NA")] )
+mean   ( material1$CoA_3[which(material1$CoA_3 != "NA")] )
+
+median ( material1$CoA_7[which(material1$CoA_7 != "NA")] )
+mean   ( material1$CoA_7[which(material1$CoA_7 != "NA")] )
+
+
+```
+
+###### Lasso
+
+```{r}
+
+material1l = as.matrix(material1)
+
+```
+
+###### CoA_3
+
+```{r}
+
+x.m1.CoA_3.m  = colMeans( material1l [ which(material1$CoA_3 != "NA" ) , -c(1,4,8) ] )
+x.m1.CoA_3.sd = colSds  ( material1l [ which(material1$CoA_3 != "NA" ) , -c(1,4,8) ] )
+x.m1.CoA_3.sc = scale   ( material1l [ which(material1$CoA_3 != "NA" ) , -c(1,4,8) ] )
+
+x.m1.CoA_3.m  = x.m1.CoA_3.m  [ which(x.m1.CoA_3.sc[1,] != "NaN" )]
+x.m1.CoA_3.sd = x.m1.CoA_3.sd [ which(x.m1.CoA_3.sc[1,] != "NaN" )]
+
+x.m1.CoA_3 = x.m1.CoA_3.sc [ , which(x.m1.CoA_3.sc[1,] != "NaN" )]
+y.m1.CoA_3 = material1l [ which(material1$CoA_3 != "NA" ) , c(4) ] - mean( material1l [ which(material1$CoA_3 != "NA" ) , c(4) ] )
+
+set.seed(1)
+cvlasso.m1.CoA_3 = cv.glmnet( x.m1.CoA_3 , y.m1.CoA_3 , alpha = 1 )
+
+plot(cvlasso.m1.CoA_3)
+
+```
+
+```{r}
+
+cvlasso.m1.CoA_3$lambda.min
+log(cvlasso.m1.CoA_3$lambda.min)
+
+```
+
+```{r}
+
+fitlasso.m1.CoA_3 = glmnet( x.m1.CoA_3 , y.m1.CoA_3 , alpha = 1 )
+
+predict( fitlasso.m1.CoA_3 , s = cvlasso.m1.CoA_3$lambda.min , type = "coefficients" )
+
+z.m1.CoA_3 = material1l [ -which(material1$CoA_3 != "NA" ) , -c(1,4,8) ]
+z.m1.CoA_3 = z.m1.CoA_3 [ , which(x.m1.CoA_3.sc[1,] != "NaN" )]
+z.m1.CoA_3 = ( z.m1.CoA_3 - matrix( rep(x.m1.CoA_3.m,dim(z.m1.CoA_3)[1]) , dim(z.m1.CoA_3)[1] , dim(z.m1.CoA_3)[2] , byrow = T ) ) /
+                 matrix( rep(x.m1.CoA_3.sd,dim(z.m1.CoA_3)[1]) , dim(z.m1.CoA_3)[1] , dim(z.m1.CoA_3)[2] , byrow = T )
+
+pred.m1.CoA_3 = predict( fitlasso.m1.CoA_3 , z.m1.CoA_3 , s = cvlasso.m1.CoA_3$lambda.min , type = "response" )
+material1l [ -which(material1$CoA_3 != "NA" ) , c(4) ] = pred.m1.CoA_3 * sd(y.m1.CoA_3) * sqrt( length(z.m1.CoA_3) / (length(z.m1.CoA_3)+1) ) + 
+  mean( material1l [ which(material1$CoA_3 != "NA" ) , c(4) ] )
+
+col = rep( "red" , dim(material1)[1] )
+col[which(material1$CoA_3 != "NA" )] = "black"
+plot( material1l[,4] , col = col , pch = 19 , xlab = "批號" , ylab = "Value" , main = "CoA_3" )
+
+```
+
+###### CoA_7
+
+```{r}
+
+x.m1.CoA_7.m  = colMeans( material1l [ which(material1$CoA_7 != "NA" ) , -c(1,4,8) ] )
+x.m1.CoA_7.sd = colSds  ( material1l [ which(material1$CoA_7 != "NA" ) , -c(1,4,8) ] )
+x.m1.CoA_7.sc = scale   ( material1l [ which(material1$CoA_7 != "NA" ) , -c(1,4,8) ] )
+
+x.m1.CoA_7.m  = x.m1.CoA_7.m  [ which(x.m1.CoA_7.sc[1,] != "NaN" )]
+x.m1.CoA_7.sd = x.m1.CoA_7.sd [ which(x.m1.CoA_7.sc[1,] != "NaN" )]
+
+x.m1.CoA_7 = x.m1.CoA_7.sc [ , which(x.m1.CoA_7.sc[1,] != "NaN" )]
+y.m1.CoA_7 = material1l [ which(material1$CoA_7 != "NA" ) , c(8) ] - mean( material1l [ which(material1$CoA_7 != "NA" ) , c(8) ] )
+
+set.seed(1)
+cvlasso.m1.CoA_7 = cv.glmnet( x.m1.CoA_7 , y.m1.CoA_7 , alpha = 1 )
+
+plot(cvlasso.m1.CoA_7)
+
+```
+
+```{r}
+
+cvlasso.m1.CoA_7$lambda.min
+log(cvlasso.m1.CoA_7$lambda.min)
+
+```
+
+```{r}
+
+fitlasso.m1.CoA_7 = glmnet( x.m1.CoA_7 , y.m1.CoA_7 , alpha = 1 )
+
+predict( fitlasso.m1.CoA_7 , s = cvlasso.m1.CoA_7$lambda.min , type = "coefficients" )
+
+z.m1.CoA_7 = material1l [ -which(material1$CoA_7 != "NA" ) , -c(1,4,8) ]
+z.m1.CoA_7 = z.m1.CoA_7 [ , which(x.m1.CoA_7.sc[1,] != "NaN" )]
+z.m1.CoA_7 = ( z.m1.CoA_7 - matrix( rep(x.m1.CoA_7.m,dim(z.m1.CoA_7)[1]) , dim(z.m1.CoA_7)[1] , dim(z.m1.CoA_7)[2] , byrow = T ) ) /
+                 matrix( rep(x.m1.CoA_7.sd,dim(z.m1.CoA_7)[1]) , dim(z.m1.CoA_7)[1] , dim(z.m1.CoA_7)[2] , byrow = T )
+
+pred.m1.CoA_7 = predict( fitlasso.m1.CoA_7 , z.m1.CoA_7 , s = cvlasso.m1.CoA_7$lambda.min , type = "response" )
+material1l [ -which(material1$CoA_7 != "NA" ) , c(8) ] = pred.m1.CoA_7 * sd(y.m1.CoA_7) * sqrt( length(z.m1.CoA_7) / (length(z.m1.CoA_7)+1) ) + 
+  mean( material1l [ which(material1$CoA_7 != "NA" ) , c(8) ] )
+
+col = rep( "red" , dim(material1)[1] )
+col[which(material1$CoA_7 != "NA" )] = "black"
+plot( material1l[,8] , col = col , pch = 19 , xlab = "批號" , ylab = "Value" , main = "CoA_7" )
+
+```
+
+###### PCA for Material1
+
+```{r}
+
+( m1.pca = prcomp ( (material1[,-c(1,4,8)])[ , which(x.m1.CoA_7.sc[1,] != "NaN" )] , scale = T ) )
+
+```
+
+```{r}
+
+plot( m1.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m1l.CoA_3.pca = prcomp ( cbind( (material1l[,-c(1,4,8)])[ , which(x.m1.CoA_7.sc[1,] != "NaN" )] , material1l[,4] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m1l.CoA_3.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m1l.CoA_7.pca = prcomp ( cbind( (material1l[,-c(1,4,8)])[ , which(x.m1.CoA_7.sc[1,] != "NaN" )] , material1l[,8] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m1l.CoA_7.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m1l.CoA_3.7.pca = prcomp ( cbind( (material1l[,-c(1,4,8)])[ , which(x.m1.CoA_7.sc[1,] != "NaN" )] , material1l[,4] , material1l[,8] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m1l.CoA_3.7.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+###### Scatter Plot for Material1
+
+```{r,fig.height = 10,fig.width = 8}
+
+index = c(1,3,7,12,13,14,15,16,17,4,8)
+
+par(mfrow = c(5,2))
+
+for ( i in c(1:9,11) ) {
+  plot( material1l[,index[i]] , material1l[,4] , xlab = colnames(material1l)[index[i]] , ylab = "CoA_3" , col = col , pch = 19 )
+}
+
+for ( i in c(1:10) ) {
+  plot( material1l[,index[i]] , material1l[,8] , xlab = colnames(material1l)[index[i]] , ylab = "CoA_7" , col = col , pch = 19 )
+}
+
+```
+
+
+
+##### Material 3
+###### Missing : CoA_4 , CoA_23 , CoA_34
+
+```{r}
+
+par(mfrow = c(2,3))
+
+plot( material3$CoA_4  , xlab = "批號" , ylab = "CoA_4"  , main = "Material3" )
+plot( material3$CoA_23 , xlab = "批號" , ylab = "CoA_23" , main = "Material3" )
+plot( material3$CoA_34 , xlab = "批號" , ylab = "CoA_34" , main = "Material3" )
+
+hist( material3$CoA_4  , xlab = "CoA_4"  , main = "Material3" )
+abline( v = median ( material3$CoA_4 [which(material3$CoA_4  != "NA")] ) , col = "red" )
+
+hist( material3$CoA_23 , xlab = "CoA_23" , main = "Material3" )
+abline( v = median ( material3$CoA_23[which(material3$CoA_23 != "NA")] ) , col = "red" )
+
+hist( material3$CoA_34 , xlab = "CoA_34" , main = "Material3" )
+abline( v = median ( material3$CoA_34[which(material3$CoA_34 != "NA")] ) , col = "red" )
+
+table(material3$CoA_4)
+table(material3$CoA_23)
+table(material3$CoA_34)
+
+median ( material3$CoA_4 [which(material3$CoA_4  != "NA")] )
+mean   ( material3$CoA_4 [which(material3$CoA_4  != "NA")] )
+
+median ( material3$CoA_23[which(material3$CoA_23 != "NA")] )
+mean   ( material3$CoA_23[which(material3$CoA_23 != "NA")] )
+
+median ( material3$CoA_34[which(material3$CoA_34 <= 1.330)] )
+mean   ( material3$CoA_34[which(material3$CoA_34 != "NA")] )
+
+```
+
+###### Lasso
+
+```{r}
+
+material3l = as.matrix(material3)
+
+```
+
+###### CoA_4
+
+```{r}
+
+x.m3.CoA_4.m  = colMeans( material3l [ which(material3$CoA_4 != "NA" ) , -c(1,5,24,35) ] )
+x.m3.CoA_4.sd = colSds  ( material3l [ which(material3$CoA_4 != "NA" ) , -c(1,5,24,35) ] )
+x.m3.CoA_4.sc = scale   ( material3l [ which(material3$CoA_4 != "NA" ) , -c(1,5,24,35) ] )
+
+x.m3.CoA_4.m  = x.m3.CoA_4.m  [ which(x.m3.CoA_4.sc[1,] != "NaN" )]
+x.m3.CoA_4.sd = x.m3.CoA_4.sd [ which(x.m3.CoA_4.sc[1,] != "NaN" )]
+
+x.m3.CoA_4 = x.m3.CoA_4.sc [ , which(x.m3.CoA_4.sc[1,] != "NaN" )]
+y.m3.CoA_4 = material3l [ which(material3$CoA_4 != "NA" ) , c(5) ] - mean( material3l [ which(material3$CoA_4 != "NA" ) , c(5) ] )
+
+set.seed(1)
+cvlasso.m3.CoA_4 = cv.glmnet( x.m3.CoA_4 , y.m3.CoA_4 , alpha = 1 )
+
+plot(cvlasso.m3.CoA_4)
+
+```
+
+```{r}
+
+cvlasso.m3.CoA_4$lambda.min
+log(cvlasso.m3.CoA_4$lambda.min)
+
+```
+```{r}
+
+fitlasso.m3.CoA_4 = glmnet( x.m3.CoA_4 , y.m3.CoA_4 , alpha = 1 )
+
+predict( fitlasso.m3.CoA_4 , s = cvlasso.m3.CoA_4$lambda.min , type = "coefficients" )
+
+z.m3.CoA_4 = material3l [ -which(material3$CoA_4 != "NA" ) , -c(1,5,24,35) ]
+z.m3.CoA_4 = z.m3.CoA_4 [ , which(x.m3.CoA_4.sc[1,] != "NaN" )]
+z.m3.CoA_4 = ( z.m3.CoA_4 - matrix( rep(x.m3.CoA_4.m,dim(z.m3.CoA_4)[1]) , dim(z.m3.CoA_4)[1] , dim(z.m3.CoA_4)[2] , byrow = T ) ) /
+                 matrix( rep(x.m3.CoA_4.sd,dim(z.m3.CoA_4)[1]) , dim(z.m3.CoA_4)[1] , dim(z.m3.CoA_4)[2] , byrow = T )
+
+pred.m3.CoA_4 = predict( fitlasso.m3.CoA_4 , z.m3.CoA_4 , s = cvlasso.m3.CoA_4$lambda.min , type = "response" )
+material3l [ -which(material3$CoA_4 != "NA" ) , c(5) ] = pred.m3.CoA_4 * sd(y.m3.CoA_4) * sqrt( length(z.m3.CoA_4) / (length(z.m3.CoA_4)+1) ) + 
+  mean( material3l [ which(material3$CoA_4 != "NA" ) , c(5) ] )
+
+col = rep( "red" , dim(material3)[1] )
+col[which(material3$CoA_4 != "NA" )] = "black"
+plot( material3l[,5] , col = col , pch = 19 , xlab = "批號" , ylab = "Value" , main = "CoA_4" )
+
+```
+
+###### CoA_23
+
+```{r}
+
+x.m3.CoA_23.m  = colMeans( material3l [ which(material3$CoA_23 != "NA" ) , -c(1,5,24,35) ] )
+x.m3.CoA_23.sd = colSds  ( material3l [ which(material3$CoA_23 != "NA" ) , -c(1,5,24,35) ] )
+x.m3.CoA_23.sc = scale   ( material3l [ which(material3$CoA_23 != "NA" ) , -c(1,5,24,35) ] )
+
+x.m3.CoA_23.m  = x.m3.CoA_23.m  [ which(x.m3.CoA_23.sc[1,] != "NaN" )]
+x.m3.CoA_23.sd = x.m3.CoA_23.sd [ which(x.m3.CoA_23.sc[1,] != "NaN" )]
+
+x.m3.CoA_23 = x.m3.CoA_23.sc [ , which(x.m3.CoA_23.sc[1,] != "NaN" )]
+y.m3.CoA_23 = material3l [ which(material3$CoA_23 != "NA" ) , c(24) ] - mean( material3l [ which(material3$CoA_23 != "NA" ) , c(24) ] )
+
+set.seed(1)
+cvlasso.m3.CoA_23 = cv.glmnet( x.m3.CoA_23 , y.m3.CoA_23 , alpha = 1 )
+
+plot(cvlasso.m3.CoA_23)
+
+```
+
+```{r}
+
+cvlasso.m3.CoA_23$lambda.min
+log(cvlasso.m3.CoA_23$lambda.min)
+
+```
+
+```{r}
+
+fitlasso.m3.CoA_23 = glmnet( x.m3.CoA_23 , y.m3.CoA_23 , alpha = 1 )
+
+predict( fitlasso.m3.CoA_23 , s = cvlasso.m3.CoA_23$lambda.min , type = "coefficients" )
+
+z.m3.CoA_23 = material3l [ -which(material3$CoA_23 != "NA" ) , -c(1,5,24,35) ]
+z.m3.CoA_23 = z.m3.CoA_23 [ , which(x.m3.CoA_23.sc[1,] != "NaN" )]
+z.m3.CoA_23 = ( z.m3.CoA_23 - matrix( rep(x.m3.CoA_23.m,dim(z.m3.CoA_23)[1]) , dim(z.m3.CoA_23)[1] , dim(z.m3.CoA_23)[2] , byrow = T ) ) /
+                 matrix( rep(x.m3.CoA_23.sd,dim(z.m3.CoA_23)[1]) , dim(z.m3.CoA_23)[1] , dim(z.m3.CoA_23)[2] , byrow = T )
+
+pred.m3.CoA_23 = predict( fitlasso.m3.CoA_23 , z.m3.CoA_23 , s = cvlasso.m3.CoA_23$lambda.min , type = "response" )
+material3l [ -which(material3$CoA_23 != "NA" ) , c(24) ] = pred.m3.CoA_23 * sd(y.m3.CoA_23) * sqrt( length(z.m3.CoA_23) / (length(z.m3.CoA_23)+1) ) + 
+  mean( material3l [ which(material3$CoA_23 != "NA" ) , c(24) ] )
+
+col = rep( "red" , dim(material3)[1] )
+col[which(material3$CoA_23 != "NA" )] = "black"
+plot( material3l[,24] , col = col , pch = 19 , xlab = "批號" , ylab = "Value" , main = "CoA_23" )
+
+```
+
+###### CoA_34
+
+```{r}
+
+x.m3.CoA_34.m  = colMeans( material3l [ which(material3$CoA_34 != "NA" ) , -c(1,5,24,35) ] )
+x.m3.CoA_34.sd = colSds  ( material3l [ which(material3$CoA_34 != "NA" ) , -c(1,5,24,35) ] )
+x.m3.CoA_34.sc = scale   ( material3l [ which(material3$CoA_34 != "NA" ) , -c(1,5,24,35) ] )
+
+x.m3.CoA_34.m  = x.m3.CoA_34.m  [ which(x.m3.CoA_34.sc[1,] != "NaN" )]
+x.m3.CoA_34.sd = x.m3.CoA_34.sd [ which(x.m3.CoA_34.sc[1,] != "NaN" )]
+
+x.m3.CoA_34 = x.m3.CoA_34.sc [ , which(x.m3.CoA_34.sc[1,] != "NaN" )]
+y.m3.CoA_34 = material3l [ which(material3$CoA_34 != "NA" ) , c(35) ] - mean( material3l [ which(material3$CoA_34 != "NA" ) , c(35) ] )
+
+set.seed(1)
+cvlasso.m3.CoA_34 = cv.glmnet( x.m3.CoA_34 , y.m3.CoA_34 , alpha = 1 )
+
+plot(cvlasso.m3.CoA_34)
+
+```
+
+```{r}
+
+cvlasso.m3.CoA_34$lambda.min
+log(cvlasso.m3.CoA_34$lambda.min)
+
+```
+
+```{r}
+
+fitlasso.m3.CoA_34 = glmnet( x.m3.CoA_34 , y.m3.CoA_34 , alpha = 1 )
+
+predict( fitlasso.m3.CoA_34 , s = cvlasso.m3.CoA_34$lambda.min , type = "coefficients" )
+
+z.m3.CoA_34 = material3l [ -which(material3$CoA_34 != "NA" ) , -c(1,5,24,35) ]
+z.m3.CoA_34 = z.m3.CoA_34 [ , which(x.m3.CoA_34.sc[1,] != "NaN" )]
+z.m3.CoA_34 = ( z.m3.CoA_34 - matrix( rep(x.m3.CoA_34.m,dim(z.m3.CoA_34)[1]) , dim(z.m3.CoA_34)[1] , dim(z.m3.CoA_34)[2] , byrow = T ) ) /
+                 matrix( rep(x.m3.CoA_34.sd,dim(z.m3.CoA_34)[1]) , dim(z.m3.CoA_34)[1] , dim(z.m3.CoA_34)[2] , byrow = T )
+
+pred.m3.CoA_34 = predict( fitlasso.m3.CoA_34 , z.m3.CoA_34 , s = cvlasso.m3.CoA_34$lambda.min , type = "response" )
+material3l [ -which(material3$CoA_34 != "NA" ) , c(35) ] = pred.m3.CoA_34 * sd(y.m3.CoA_34) * sqrt( length(z.m3.CoA_34) / (length(z.m3.CoA_34)+1) ) + 
+  mean( material3l [ which(material3$CoA_34 != "NA" ) , c(35) ] )
+
+col = rep( "red" , dim(material3)[1] )
+col[which(material3$CoA_34 != "NA" )] = "black"
+plot( material3l[,35] , col = col , pch = 19 , xlab = "批號" , ylab = "Value" , main = "CoA_34" )
+
+```
+
+###### PCA for Material3
+
+```{r}
+
+( m3.pca = prcomp ( (material3[,-c(1,5,24,35)])[ , which(x.m3.CoA_4.sc[1,] != "NaN" )] , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+###### Lasso
+
+```{r}
+
+( m3l.CoA_4.pca = prcomp ( cbind( (material3l[,-c(1,5,24,35)])[ , which(x.m3.CoA_4.sc[1,] != "NaN" )] , material3l[,5] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3l.CoA_4.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m3l.CoA_23.pca = prcomp ( cbind( (material3l[,-c(1,5,24,35)])[ , which(x.m3.CoA_23.sc[1,] != "NaN" )] , material3l[,24] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3l.CoA_23.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m3l.CoA_34.pca = prcomp ( cbind( (material3l[,-c(1,5,24,35)])[ , which(x.m3.CoA_34.sc[1,] != "NaN" )] , material3l[,35] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3l.CoA_34.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m3l.CoA_4.23.pca = prcomp ( cbind( (material3l[,-c(1,5,24,35)])[ , which(x.m3.CoA_4.sc[1,] != "NaN" )] , material3l[,5] , material3l[,24] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3l.CoA_4.23.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m3l.CoA_23.34.pca = prcomp ( cbind( (material3l[,-c(1,5,24,35)])[ , which(x.m3.CoA_23.sc[1,] != "NaN" )] , material3l[,24] , material3l[,35] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3l.CoA_23.34.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m3l.CoA_4.34.pca = prcomp ( cbind( (material3l[,-c(1,5,24,35)])[ , which(x.m3.CoA_34.sc[1,] != "NaN" )] , material3l[,5] , material3l[,35] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3l.CoA_4.34.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+```{r}
+
+( m3l.CoA_4.23.34.pca = prcomp ( cbind( (material3l[,-c(1,5,24,35)])[ , which(x.m3.CoA_34.sc[1,] != "NaN" )] , material3l[,5] , material3l[,24] , material3l[,35] ) , scale = T ) )
+
+```
+
+```{r}
+
+plot( m3l.CoA_4.23.34.pca , type = "line" , main = "Scree Plot" )
+abline( h = 1 , col = "blue" )
+
+```
+
+###### Scatter Plot for Material3
+
+```{r,fig.height = 10,fig.width = 8}
+
+index = c(1,7,10,12,13,14,15,16,19,21,22,23,25,26,27,28,29,30,31,32,33,36,5,24,35)
+
+par(mfrow = c(4,2))
+
+for ( i in c(1:22,24,25) ) {
+  plot( material3l[,index[i]] , material3l[,5] , xlab = colnames(material3l)[index[i]] , ylab = "CoA_4" , col = col , pch = 19 )
+}
+
+for ( i in c(1:22,23,25) ) {
+  plot( material3l[,index[i]] , material3l[,24] , xlab = colnames(material3l)[index[i]] , ylab = "CoA_23" , col = col , pch = 19 )
+}
+
+for ( i in c(1:22,23,24) ) {
+  plot( material3l[,index[i]] , material3l[,35] , xlab = colnames(material3l)[index[i]] , ylab = "CoA_34" , col = col , pch = 19 )
+}
+
+```
+
+
+
+##### Material 4
+###### Missing : CoA_23
+
+```{r}
+
+plot( material4$CoA_23 , xlab = "批號" , ylab = "CoA_23" , main = "Material4" )
+
+```
+
+###### Mean
+
+```{r}
+
+material4m = material4
+material4m$CoA_23[-which(material4$CoA_23 != "NA")] = mean ( material4$CoA_23[which(material4$CoA_23 != "NA")] )
+
+```
+
+###### Scatter Plot for Material4
+
+```{r}
+
+col = rep( "red" , dim(material4)[1] )
+col[which(material4$CoA_23 != "NA" )] = "black"
+
+par(mfrow = c(3,3))
+
+for ( i in 1:dim(material4m)[2] ) {
+  plot( material4m[,i] , material4m[,24] , xlab = colnames(material4m)[i] , ylab = "CoA_23" , col = col , pch = 19 )
+}
+
+```
+
+```{r}
+
+index = c(1,5,8,10,11,14,16,17,18,19,25,26)
+
+par(mfrow = c(3,2))
+
+for ( i in 1:length(index) ) {
+  plot( material4m[,index[i]] , material4m[,24] , xlab = colnames(material4m)[index[i]] , ylab = "CoA_23" , col = col , pch = 19 )
+}
+
+```
+
+
+
+##### PCA k-means
+
+```{r}
+
+pca.kmeans = function ( data , frame , threshold ) {
+  scaledata = scale(data)[,-1]
+  scaledata = scaledata[,which(scaledata[1,] != "NaN")]
+  
+  scaledata.pca = prcomp( scaledata , scale = F )
+  
+  print( sum(scaledata.pca$sdev[which(scaledata.pca$sdev>=1)]) / sum(scaledata.pca$sdev) )
+  
+  #print( "datadim = " , dim , "pcadim = " , threshold , "information = " , information )
+  
+  plot( scaledata.pca , type = "line" , main = "Scree Plot" )
+  abline( h = 1 , col = "blue" )
+
+  data.pc = scaledata %*% scaledata.pca$rotation[,1:threshold]
+  
+  par(mfrow = frame)
+  
+  for ( i in 1:threshold) {
+    plot( data.pc[,i] , pch = 19 , ylim = c(min(data.pc),max(data.pc)) , xlab = "批號" , ylab = "Value" , main = paste("pc",i) )
+  }
+  
+  k = 2
+  k.means = kmeans( data.pc , k )
+  while ( min (table(k.means$cluster)) >= dim(data)[1]*0.2 ) {
+    k = k + 1
+    k.means = kmeans( data.pc , k )
+  }  
+  print(k.means)
+  print(which(k.means$cluster == as.numeric(which(table(k.means$cluster)==min(table(k.means$cluster))))))
+  
+  k = 2
+  k.medoid = pamk( data.pc , k )
+  if ( min (table(k.medoid$pamobject[3])) >= dim(data)[1]*0.2 ) {
+    k = k + 1
+    k.medoid = kmeans( data.pc , k )
+  }
+  while ( min (table(k.medoid$cluster)) >= dim(data)[1]*0.2 ) {
+    k = k + 1
+    k.medoid = kmeans( data.pc , k )
+  }
+  print(k.medoid)
+  print(which(k.medoid$cluster == as.numeric(which(table(k.medoid$cluster)==min(table(k.medoid$cluster))))))
+}
+
+
+
+comparison = function ( data1 , data2 , frame , threshold ) {
+  scaledata1 = scale(data1)[,-1]
+  scaledata1 = scaledata1[,which(scaledata1[1,] != "NaN")]
+  
+  scaledata1.pca = prcomp( scaledata1 , scale = F )
+
+  data1.pc = scaledata1 %*% scaledata1.pca$rotation[,1:threshold]  
+  
+  
+  
+  scaledata2 = scale(data2)[,-1]
+  scaledata2 = scaledata2[,which(scaledata2[1,] != "NaN")]
+  
+  scaledata2.pca = prcomp( scaledata2 , scale = F )
+
+  data2.pc = scaledata2 %*% scaledata2.pca$rotation[,1:threshold]  
+  
+  par(mfrow = c(1,2))
+  
+  plot( scaledata1.pca , type = "line" , main = "Scree Plot" )
+  abline( h = 1 , col = "blue" )
+  
+  plot( scaledata2.pca , type = "line" , main = "Scree Plot" )
+  abline( h = 1 , col = "blue" )
+  
+  par(mfrow = frame)
+  
+  for ( i in 1:threshold ) {
+    plot( data1.pc[,i] , col = "black" , pch = 19 , ylim = c( min(data1.pc,data2.pc) , max(data1.pc,data2.pc)) , xlab = "批號" , ylab = "Value" , main = paste("pc",i) )
+    par(new=T)
+    plot( data2.pc[,i] , col = "red" , pch = 19  , ylim = c( min(data1.pc,data2.pc) , max(data1.pc,data2.pc)) , xlab = "" , ylab = "" , main = "" )
+  }
+  
+  par(mfrow = frame)
+  
+  for ( i in 1:threshold ) {
+    boxplot( data1.pc[,i] , data2.pc[,i] , main = paste("pc",i) , horizontal = T )
+  }
+}
+
+
+
+mcomparison = function ( data1 , data2 , data3 , data4 , frame , threshold ) {
+  scaledata1 = scale(data1)[,-1]
+  scaledata1 = scaledata1[,which(scaledata1[1,] != "NaN")]
+  
+  scaledata1.pca = prcomp( scaledata1 , scale = F )
+
+  data1.pc = scaledata1 %*% scaledata1.pca$rotation[,1:threshold]  
+  
+  
+  
+  scaledata2 = scale(data2)[,-1]
+  scaledata2 = scaledata2[,which(scaledata2[1,] != "NaN")]
+  
+  scaledata2.pca = prcomp( scaledata2 , scale = F )
+
+  data2.pc = scaledata2 %*% scaledata2.pca$rotation[,1:threshold]  
+  
+  scaledata3 = scale(data3)[,-1]
+  scaledata3 = scaledata3[,which(scaledata3[1,] != "NaN")]
+  
+  scaledata3.pca = prcomp( scaledata3 , scale = F )
+
+  data3.pc = scaledata3 %*% scaledata3.pca$rotation[,1:threshold]  
+  
+  scaledata4 = scale(data4)[,-1]
+  scaledata4 = scaledata4[,which(scaledata4[1,] != "NaN")]
+  
+  scaledata4.pca = prcomp( scaledata4 , scale = F )
+
+  data4.pc = scaledata4 %*% scaledata4.pca$rotation[,1:threshold]  
+  
+  par(mfrow = c(2,2))
+  
+  plot( scaledata1.pca , type = "line" , main = "Scree Plot" )
+  abline( h = 1 , col = "blue" )
+  
+  plot( scaledata2.pca , type = "line" , main = "Scree Plot" )
+  abline( h = 1 , col = "blue" )
+  
+  plot( scaledata3.pca , type = "line" , main = "Scree Plot" )
+  abline( h = 1 , col = "blue" )
+  
+  plot( scaledata4.pca , type = "line" , main = "Scree Plot" )
+  abline( h = 1 , col = "blue" )
+  
+  par(mfrow = frame)
+  
+  for ( i in 1:threshold ) {
+    boxplot( as.data.frame(data1.pc[,i] , data2.pc[,i] , data3.pc[,i] , data4.pc[,i]) , main = paste("pc",i) , horizontal = T )
+  }
+}
+
+```
+
+###### Material 1
+
+```{r}
+
+set.seed(1)
+pca.kmeans( material1[,-c(4,8)] , c(2,3) , 5 )
+
+set.seed(1)
+pca.kmeans( material1l , c(2,3) , 5 )
+
+comparison( material1[-which(material1$CoA_3 != "NA"),-c(4,8)] , material1l[-which(material1$CoA_3 != "NA"),] , c(2,2) , 3 )
+
+comparison( material1[,-c(4,8)] , material1l , c(2,3) , 5 )
+
+```
+
+###### Material 3
+
+```{r}
+
+set.seed(1)
+pca.kmeans( material3[,-c(5,24,35)] , c(3,3) , 9 )
+
+set.seed(1)
+pca.kmeans( material3[,-c(5,24,35)] , c(3,3) , 9 )
+
+comparison( material3[-which(material3$CoA_4 != "NA"),-c(5,24,35)] , material3l[-which(material3$CoA_4 != "NA"),] , c(3,3) , 8 )
+
+comparison( material3[-which(material3$CoA_23 != "NA"),-c(5,24,35)] , material3l[-which(material3$CoA_23 != "NA"),] , c(3,3) , 8 )
+
+comparison( material3[-which(material3$CoA_34 != "NA"),-c(5,24,35)] , material3l[-which(material3$CoA_34 != "NA"),] , c(3,3) , 8 )
+
+comparison( material3[,-c(5,24,35)] , material3l , c(3,3) , 9 )
+
+```
+
+###### Material 4
+
+```{r}
+
+set.seed(1)
+pca.kmeans(material4[,-c(24)] , c(2,3) , 5 )
+
+set.seed(1)
+pca.kmeans( material4m , c(2,3) , 5 )
+
+```
+
+
+
+
+
